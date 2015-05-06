@@ -28,6 +28,38 @@ import javax.jws.soap.SOAPBinding.Use;
 @SOAPBinding(style = Style.DOCUMENT, use = Use.LITERAL, parameterStyle = ParameterStyle.WRAPPED)
 public class ParserService
 {
+    private Pattern generatePattern(String[] words, String[] separators)
+    {
+        String wordsString = "(";
+        for(String word : words)
+        {
+            wordsString += (word + '|');
+        }
+        wordsString = wordsString.substring(0, wordsString.length() - 1) + ')';
+        
+        String sepString = null;
+        if(separators != null && separators.length != 0)
+        {
+            sepString = "(";
+            for(String word : separators)
+            {
+                sepString += (word + '|');
+            }
+            sepString = sepString.substring(0, sepString.length() - 1) + ')';
+        }
+        
+        String finalString;
+        if(sepString == null)
+        {
+            finalString = "^" + wordsString + "(.+)$";
+        }
+        else
+        {
+            finalString = "^" + wordsString + "(.+)" + sepString + "(.+)$";
+        }
+        return Pattern.compile(finalString);
+    }
+    
     /**
      * Web service operation
      * @param request
@@ -42,146 +74,65 @@ public class ParserService
         String[] deleteWords = {"suppression de", "supprimer", "retirer", "enlever", "supprimes", "retires", "enlèves"};
         String[] playWords = {"écouter", "jouer", "lancer", "joues", "lances"};
         String[] searchWords = {"chercher", "recherche de", "rechercher", "cherches", "recherches", "trouves"};
-        
         String[] titleArtistSeparators = {"de", "par"};
-        
-        //Pattern[] addPatterns = new Pattern[addWords.length * titleArtistSeparators.length];
-        List<Pattern> addPatterns = new ArrayList<Pattern>();
-        List<Pattern> addPatterns2 = new ArrayList<Pattern>();
-        for(String word : addWords)
+          
+        // ADD
+        Pattern p = generatePattern(addWords, titleArtistSeparators);
+        Matcher match = p.matcher(request);
+        if(match.find())
         {
-            for(String sep : titleArtistSeparators)
-            {
-                String temp = "^" + word + "(( (.+))?( " + sep + "(.+)))?$";
-                addPatterns.add(Pattern.compile(temp));
-            }
-            String temp = "^" + word + "( (.+))$";
-            addPatterns2.add(Pattern.compile(temp));
+            return new Command(Action.ADD, match.group(4), match.group(2));
+        }
+        p = generatePattern(addWords, null);
+        match = p.matcher(request);
+        if(match.find())
+        {
+            return new Command(Action.ADD, null, match.group(2));
         }
         
-        List<Pattern> removePatterns = new ArrayList<Pattern>();
-        List<Pattern> removePatterns2 = new ArrayList<Pattern>();
-        for(String word : deleteWords)
+        // REMOVE
+        p = generatePattern(deleteWords, titleArtistSeparators);
+        match = p.matcher(request);
+        if(match.find())
         {
-            for(String sep : titleArtistSeparators)
-            {
-                String temp = "^" + word + "(( (.+))?( " + sep + "(.+)))?$";
-                removePatterns.add(Pattern.compile(temp));
-            }
-            String temp = "^" + word + "( (.+))$";
-            removePatterns2.add(Pattern.compile(temp));
+            return new Command(Action.REMOVE, match.group(4), match.group(2));
+        }
+        p = generatePattern(deleteWords, null);
+        match = p.matcher(request);
+        if(match.find())
+        {
+            return new Command(Action.REMOVE, null, match.group(2));
         }
         
-        List<Pattern> playPatterns = new ArrayList<Pattern>();
-        List<Pattern> playPatterns2 = new ArrayList<Pattern>();
-        for(String word : playWords)
+        // PLAY
+        p = generatePattern(playWords, titleArtistSeparators);
+        match = p.matcher(request);
+        if(match.find())
         {
-            for(String sep : titleArtistSeparators)
-            {
-                String temp = "^" + word + "(( (.+))?( " + sep + "(.+)))?$";
-                playPatterns.add(Pattern.compile(temp));
-            }
-            String temp = "^" + word + "( (.+))$";
-            playPatterns2.add(Pattern.compile(temp));
+            return new Command(Action.PLAY, match.group(4), match.group(2));
+        }
+        p = generatePattern(playWords, null);
+        match = p.matcher(request);
+        if(match.find())
+        {
+            return new Command(Action.PLAY, null, match.group(2));
         }
         
-        List<Pattern> searchPatterns = new ArrayList<Pattern>();
-        for(String word : searchWords)
+        // SEARCH
+        p = generatePattern(searchWords, titleArtistSeparators);
+        match = p.matcher(request);
+        if(match.find())
         {
-            String temp = "^" + word + "(( (.+))?( dans l'artiste))$";
-            searchPatterns.add(Pattern.compile(temp));
-            temp = "^" + word + "(( (.+))?( dans le titre))$";
-            searchPatterns.add(Pattern.compile(temp));
+            return new Command(Action.SEARCH, match.group(4), match.group(2));
+        }
+        p = generatePattern(searchWords, null);
+        match = p.matcher(request);
+        if(match.find())
+        {
+            return new Command(Action.SEARCH, null, match.group(2));
         }
         
-        Action action = null;
-        String title = null;
-        String artist = null;
-        
-        for(Pattern p : addPatterns)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.ADD;
-                title = match.group(2);
-                if(match.group(5) != null)
-                    artist = match.group(5);
-                return new Command(action, artist, title);
-            }
-        }
-        for(Pattern p : addPatterns2)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.ADD;
-                title = match.group(2);
-                return new Command(action, null, title);
-            }
-        }
-        for(Pattern p : removePatterns)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.REMOVE;
-                title = match.group(2);
-                if(match.group(5) != null)
-                    artist = match.group(5);
-                return new Command(action, artist, title);
-            }
-        }
-        for(Pattern p : removePatterns2)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.REMOVE;
-                title = match.group(2);
-                return new Command(action, null, title);
-            }
-        }
-        for(Pattern p : playPatterns)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.PLAY;
-                title = match.group(2);
-                if(match.group(5) != null)
-                    artist = match.group(5);
-                return new Command(action, artist, title);
-            }
-        }
-        for(Pattern p : playPatterns2)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.PLAY;
-                title = match.group(2);
-                return new Command(action, null, title);
-            }
-        }
-        for(Pattern p : searchPatterns)
-        {
-            Matcher match = p.matcher(request);
-            if(match.find())
-            {
-                action = Action.SEARCH;
-                if(match.group(4).equals("titre"))
-                    title = match.group(3);
-                else
-                    artist = match.group(3);
-                return new Command(action, artist, title);
-            }
-        }
-        
-        action = Action.SEARCH;
-        title = "error";
-        artist = "error";
-        
-        return new Command(action, artist, title);
+        //return new Command(Action.SEARCH, "error", "error");
+        return null;
     }
 }

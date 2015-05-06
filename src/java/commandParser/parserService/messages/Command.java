@@ -18,10 +18,16 @@ public class Command
     public Command(Action action, String artist, String title)
     {
         this.action = action;
-        this.artist = artist;
-        this.title = title;
+        if(artist != null)
+            this.artist = artist.trim();
+        else
+            this.artist = null;
+        if(title != null)
+            this.title = title.trim();
+        else
+            this.title = null;
     }
-
+    
     public void setAction(Action action) { this.action = action; }
 
     public void setArtist(String artist) { this.artist = artist; }
